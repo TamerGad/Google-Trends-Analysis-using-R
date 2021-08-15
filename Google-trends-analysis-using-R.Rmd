@@ -1,0 +1,197 @@
+---
+title: "Google Trends Analysis in R"
+---
+
+# Task One: Getting Started
+In this task, you will import the required
+packages for this project
+```{r}
+
+## 1.1: Importing required packages
+library(gtrendsR)
+library(dplyr)
+library(ggplot2)
+library(ggforce)
+library(ggrepel)
+library(spData) # to load the world data
+library(tmap)   # to map visualization
+library(DT)     # to create the data tables shown at the bottom chunk
+
+
+```
+
+#Task Two: Getting Google trends data
+In this task, we will learn how to get 
+Google trends data about Covid
+```{r}
+
+## 2.1: Retrieve the worldwide data for 
+## "covid" in the last 12 months
+trends <- gtrends(keyword = c("covid","vaccine"), time = "today 12-m", geo = "US")
+wtrends <- gtrends(keyword = c("covid","vaccine"), time = "today 12-m")
+## 2.2: Return the names of the datasets from trends
+names(trends)
+
+## 2.3: Search for the keywords "covid" and 
+## "vaccine" in US in the last 12 months
+gtrends(keyword = c("covid","vaccine"),time = "today 12-m", geo = "US")
+
+```
+
+#Task Three: Interest Over Time Data
+In this task, we will learn how to examine 
+and explore the interest over time data
+```{r}
+
+## 3.1: Return the interest over time 
+## data from the trends dataset
+interest_time <- trends$interest_over_time
+
+## 3.2: Print the interest_time data
+interest_time
+
+## 3.3: Return the dates with the highest number of hits
+interest_time %>%
+  top_n(5,hits) %>%
+  arrange(desc(hits))
+
+mx = interest_time[interest_time$hits == max(interest_time$hits),]$date
+
+```
+
+#Task Four: Visualize the Interest Over Time Data
+In this task, we will learn how to 
+visualize the interest over time data
+```{r}
+
+## 4.1: Visualize the interest over time data
+interest_time %>%
+  ggplot(aes(x = date, y = hits, color = keyword)) +
+  geom_smooth(span = 0.1, se = FALSE) +
+  geom_point(color = "black") +
+  geom_vline(xintercept = as.POSIXct(mx), color = "red", linetype = "dashed") +
+  theme_bw() +
+  labs(title = "Google Web search for 'Covid & Vaccine' in 2021",
+       x = NULL, y = "Interest",
+       caption = paste("Google Web Search Analysis :",Sys.Date()))
+ 
+
+  
+       
+  
+  
+
+## 4.2: Zoom in to check between January 1, 2021
+## to April 30, 2021
+
+interest_time %>%
+  ggplot(aes(x = date, y = hits, color = keyword)) +
+  geom_smooth(span = 0.1, se = FALSE) +
+  facet_zoom(xlim =  c(as.POSIXct(Sys.Date()-60),as.POSIXct(Sys.Date()) )) +
+  geom_point(color = "black") +
+  geom_vline(xintercept = as.POSIXct(mx), color = "red", linetype = "dashed") +
+  theme_bw() +
+  labs(title = "Google Web search for 'Covid & Vaccine' in 2021 (Zooming last 60 days)",
+       x = NULL, y = "Interest",
+       caption = paste("Google Web Search Analysis :",Sys.Date()))
+
+```
+
+#Task Five: Related Queries Data
+In this task, we will examine and 
+explore related queries to Covid
+```{r}
+
+## 5.1: Return the related queries data
+rel_queries <- trends$related_queries
+rel_queries
+
+library(tidyverse)
+## 5.2: Create a bar plot for the queries 
+## most related to covid
+
+covid_search <- rel_queries %>%
+  filter(grepl('covid', value) & related_queries == 'top' ) %>%
+  mutate(subject = as.numeric(subject)) %>%
+  arrange(desc(subject)) %>%
+  mutate(order = c(1:nrow(covid_search)))
+
+  
+
+covid_search %>%
+  ggplot(aes(x = reorder(value,-order), y = subject, fill = 'red', label = subject)) +
+  geom_bar(stat = "identity", show.legend = F) +
+  coord_flip() +
+  theme_get() +
+  labs(x = "Search Value", y = "Subject") +
+  ggtitle("Google Queries most related to 'Covid' ") +
+  theme(plot.title = element_text(colour = "red", size = 18),
+        axis.title = element_text(colour = "blue")) +
+  geom_text(size = 2, color = "blue", position = position_stack(vjust = 1.2))
+
+
+  
+
+
+  
+  
+
+
+```
+
+#Task Six: Interest by Country Data
+In this task, we will examine and 
+explore the interest by country data
+```{r}
+
+## 6.1: Return the interest by country data
+by_country <- wtrends$interest_by_country
+by_country
+
+## 6.2: Create a variable called "countries" 
+## from the world data and interest by country data
+countries <- spData::world %>%
+  left_join(y = by_country, by = c("name_long" = "location"), keep = T)
+
+
+
+## 6.3: Create a map of the interest by countries
+tm_shape(countries) +
+  tm_fill("hits",
+          title = "Search Interest",
+          legend.reverse = T,
+          id = "name_long", 
+          popup.vars = c(Name = "name_long", Search.Interest = "hits",
+                       Population = "pop", Life.Expectancy = "lifeExp", 
+                       GDP.per.capita = "gdpPercap"))
+
+## 6.4: Different versions of the map
+tmap_mode("view") #interactive maps
+
+## OR
+
+tmap_mode("plot") #plot-ready maps
+
+```
+
+#Task Seven: Interest by City Data
+In this task, we will examine and
+explore the interest by city data
+```{r}
+
+## 7.1: Return the interest by city data
+interest_city <- wtrends$interest_by_city
+interest_city
+
+## 7.2: Return the top 3 cities with the highest hits
+interest_city %>%
+  arrange(desc(hits)) %>%
+  head(3)
+
+## 7.3: Return a table for the interest by city
+datatable(interest_city)
+
+## 7.4: Return the first 25 rows of the table
+datatable(interest_city[c(1:25),])
+
+```
